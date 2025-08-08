@@ -1,0 +1,30 @@
+FROM node:20-bookworm-slim AS base
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Docker CLI for running docker commands via mounted docker.sock
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+       ca-certificates curl git docker.io \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+# Copy manifests first for better caching
+COPY backend/package.json backend/package-lock.json backend/tsconfig.json backend/nest-cli.json ./
+
+# Install dependencies
+RUN npm ci --no-audit --no-fund
+
+# Copy sources and build
+COPY backend/src ./src
+RUN npm run build
+
+ENV NODE_ENV=production \
+    PORT=3000 \
+    ALLOWED_BINARIES=git,docker
+
+EXPOSE 3000
+
+CMD ["node", "dist/main.js"]
+
